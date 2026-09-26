@@ -2,8 +2,8 @@
 // Gives an existing user admin access, or creates a new admin account when
 // no user has that email.
 import { createInterface } from "node:readline";
-import { hash } from "argon2";
 import { prisma } from "@/database/lib/prisma";
+import { auth } from "@/app/_auth/auth";
 import { checkEmail, checkPassword, checkUserName, normalizeEmail } from "@/app/_auth/validation";
 
 const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
@@ -43,13 +43,13 @@ async function main() {
   const invalid = checkEmail(email);
   if (invalid) throw new Error(invalid);
 
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, userName: true, isAdmin: true } });
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, username: true, isAdmin: true } });
   if (user) {
     if (user.isAdmin) {
-      console.log(`${email} (@${user.userName}) is already an admin.`);
+      console.log(`${email} (@${user.username}) is already an admin.`);
     } else {
       await prisma.user.update({ where: { id: user.id }, data: { isAdmin: true } });
-      console.log(`${email} (@${user.userName}) is now an admin.`);
+      console.log(`${email} (@${user.username}) is now an admin.`);
     }
     return;
   }
@@ -60,7 +60,7 @@ async function main() {
   const userName = await askValid("User name: ", async (v) => {
     const invalidName = checkUserName(v);
     if (invalidName) return invalidName;
-    return (await prisma.user.findUnique({ where: { userName: v }, select: { id: true } })) ? "That user name is taken." : null;
+    return (await prisma.user.findUnique({ where: { username: v }, select: { id: true } })) ? "That user name is taken." : null;
   });
   const name = (await ask("Full name (optional): ")).trim() || null;
   let password = "";
@@ -70,7 +70,10 @@ async function main() {
     console.log("  Passwords don't match.");
   }
 
-  await prisma.user.create({ data: { email, userName, name, passwordHash: await hash(password), isAdmin: true } });
+  // Go through the real sign-up path so the account is created exactly the
+  // way a normal user's would be (same hashing, same validation), then flip isAdmin.
+  const { user: created } = await auth.api.signUpEmail({ body: { name: name ?? userName, email, password, username: userName } });
+  await prisma.user.update({ where: { id: created.id }, data: { isAdmin: true } });
   console.log(`\nCreated admin @${userName} (${email}). Log in at /auth/login.`);
 }
 

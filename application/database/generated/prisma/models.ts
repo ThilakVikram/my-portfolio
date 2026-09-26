@@ -8,9 +8,11 @@
  *
  * 🟢 You can import this file directly.
  */
+export type * from './models/User'
+export type * from './models/Session'
+export type * from './models/Account'
+export type * from './models/Verification'
 export type * from './models/GoogleApiKey'
 export type * from './models/PersonalData'
 export type * from './models/Portfolio'
-export type * from './models/User'
-export type * from './models/Session'
 export type * from './commonInputTypes'

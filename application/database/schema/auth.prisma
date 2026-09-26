@@ -1,0 +1,74 @@
+// Auth tables, owned by better-auth (app/_auth/auth.ts). Shape follows
+// better-auth's built-in schema; only `isAdmin` (an additionalField, gates
+// /admin) and the `username` plugin's `username` field are app-specific.
+model User {
+  id            String    @id @db.VarChar(36)
+  email         String    @unique @db.VarChar(191)
+  emailVerified Boolean   @default(false)
+  name          String    @db.VarChar(191)
+  image         String?   @db.VarChar(2048)
+  // From the username plugin; nullable per its schema, but this app always sets it.
+  username      String?   @unique @db.VarChar(191)
+  // Only users/setAdmin.ts (via a direct Prisma update) can flip this.
+  isAdmin       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("users")
+}
+
+// A signed-in browser. `token`'s hash is what's actually stored in the
+// session cookie; `id` is just this row's primary key.
+model Session {
+  id        String   @id @db.VarChar(36)
+  token     String   @unique @db.VarChar(255)
+  userId    String   @db.VarChar(36)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// One row per way a user can sign in. For this app that's always the
+// "credential" provider, whose password hash lives in `password`; the
+// OAuth-shaped columns are part of better-auth's fixed schema but unused here.
+model Account {
+  id                    String    @id @db.VarChar(36)
+  userId                String    @db.VarChar(36)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String    @db.VarChar(191)
+  providerId            String    @db.VarChar(191)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?   @db.VarChar(255)
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Short-lived tokens (email verification, password reset). Unused today
+// since those flows aren't enabled, but part of better-auth's fixed schema.
+model Verification {
+  id         String   @id @db.VarChar(36)
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
