@@ -1,21 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-// Optimistic check only: it looks for the session cookie, not the database.
-// Pages and actions confirm the session with getCurrentUser()/isAdmin().
-const SESSION_COOKIE = "session";
-
-// Open to everyone. The assistant API is public because the chat on "/" calls it.
-const PUBLIC = new Set(["/", "/api/personal_assistant"]);
-const AUTH_PAGES = new Set(["/auth/login", "/auth/signin"]);
+// Optimistic check only: it verifies the signed session cookie's shape, not
+// the database. Pages and actions confirm the session for real with
+// getCurrentUser()/isAdmin() (see app/_auth/session.ts).
+//
+// /auth/login and /auth/signin deliberately do NOT redirect an "optimistically
+// signed in" visitor away here — that decision needs the authoritative check,
+// which those pages do themselves. Doing it here (based on cookie presence
+// alone) is what used to trap visitors at "/" whenever the DB session was
+// gone but the browser still held the cookie.
+const PUBLIC = new Set(["/", "/api/personal_assistant", "/auth/login", "/auth/signin"]);
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const signedIn = request.cookies.has(SESSION_COOKIE);
-
-  if (AUTH_PAGES.has(pathname)) {
-    return signedIn ? NextResponse.redirect(new URL("/", request.url)) : NextResponse.next();
-  }
-  if (PUBLIC.has(pathname) || signedIn) return NextResponse.next();
+  // better-auth's own routes (sign-in, sign-up, session refresh, ...) have to
+  // be reachable while signed out - that's how signing in happens.
+  if (pathname.startsWith("/api/auth/")) return NextResponse.next();
+  if (PUBLIC.has(pathname) || getSessionCookie(request)) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) return Response.json({ error: "Sign in required." }, { status: 401 });
   const login = new URL("/auth/login", request.url);

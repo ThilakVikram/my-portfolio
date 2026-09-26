@@ -1,7 +1,7 @@
 // Account rules shared by the sign-up action and scripts/set-admin.ts.
 // Each check returns an error message, or null when the value is fine.
 
-// argon2 cost grows with input size, so cap it.
+// Password-hashing cost grows with input size, so cap it.
 export const MAX_PASSWORD = 256;
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();

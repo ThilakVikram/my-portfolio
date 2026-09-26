@@ -1,63 +1,34 @@
-import { createHash, randomBytes } from "node:crypto";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/database/lib/prisma";
+import { auth } from "@/app/_auth/auth";
 
-// Database-backed sessions. The cookie holds a random token and the sessions
-// table holds its SHA-256, so deleting a row signs that browser out.
-// proxy.ts only checks that this cookie exists; the real check is here.
-export const SESSION_COOKIE = "session";
-const MAX_AGE_S = 60 * 60 * 24 * 30;
+export type CurrentUser = { id: string; email: string; userName: string; name: string; isAdmin: boolean };
 
-const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-
-export type CurrentUser = { id: number; email: string; userName: string; name: string | null; isAdmin: boolean };
-
-export async function createSession(userId: number) {
-  const token = randomBytes(32).toString("base64url");
-  await prisma.session.create({
-    data: { id: hashToken(token), userId, expiresAt: new Date(Date.now() + MAX_AGE_S * 1000) },
+// Cached per request. Pass `fresh` to bypass the signed session-cookie cache
+// for an authoritative DB read — needed wherever a stale cache would matter,
+// e.g. deciding whether to bounce an already-signed-in visitor away from
+// /auth/login (see app/auth/login/page.tsx).
+export const getCurrentUser = cache(async (fresh = false): Promise<CurrentUser | null> => {
+  const result = await auth.api.getSession({
+    headers: await headers(),
+    query: fresh ? { disableCookieCache: true } : undefined,
   });
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: MAX_AGE_S,
-    path: "/",
-  });
-}
-
-export async function deleteSession() {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (token) await prisma.session.deleteMany({ where: { id: hashToken(token) } });
-  store.delete(SESSION_COOKIE);
-}
-
-// Cached per request, so layouts, pages and actions can all call it.
-export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const session = await prisma.session.findUnique({
-    where: { id: hashToken(token) },
-    include: { user: { select: { id: true, email: true, userName: true, name: true, isAdmin: true } } },
-  });
-  if (!session) return null;
-  if (session.expiresAt < new Date()) {
-    await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
-    return null;
-  }
-  return session.user;
+  if (!result) return null;
+  const { user } = result;
+  return { id: user.id, email: user.email, userName: user.username ?? "", name: user.name, isAdmin: user.isAdmin ?? false };
 });
 
+// Authorization is a sensitive check (it gates /admin and every admin Server
+// Action), so it always goes fresh rather than trusting the signed-cookie
+// cache for up to its 5-minute window.
 export async function isAdmin() {
-  return !!(await getCurrentUser())?.isAdmin;
+  return !!(await getCurrentUser(true))?.isAdmin;
 }
 
 // For pages: sends signed-out visitors to the login page.
 export async function requireUser(next = "/") {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(true);
   if (!user) redirect(`/auth/login?next=${encodeURIComponent(next)}`);
   return user;
 }
