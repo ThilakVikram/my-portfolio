@@ -1,17 +1,4 @@
 services:
-  application:
-    image: official-app
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env.dev
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-      chroma_db:
-        condition: service_started
-
   chroma_db:
     image: chromadb/chroma:latest
     container_name: chromadb

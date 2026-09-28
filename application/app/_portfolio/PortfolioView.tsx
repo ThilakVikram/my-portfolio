@@ -1,4 +1,5 @@
 import type { AboutSection, ContactSection, ExperienceSection, Portfolio, Profile, ProjectsSection, Section, ServicesSection, SkillsSection, TextSection } from "./content";
+import BrandMark from "@/components/BrandMark";
 
 // Renders the public portfolio page. No hooks, so it works both as a Server
 // Component (app/page.tsx) and inside the editor's live preview.
@@ -15,7 +16,7 @@ export default function PortfolioView({ data, account }: { data: Portfolio; acco
       <header className="sticky top-0 z-40 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-lg">
         <nav className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
           <a href="#" className="truncate font-mono text-sm tracking-widest text-emerald-400">
-            &lt;{profile.name || "Portfolio"} /&gt;
+            <BrandMark name={profile.name} />
           </a>
           <div className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
             {sections.filter((s) => s.type !== "contact" && s.title).map((s) => (
