@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# thertv.in — Application
 
-## Getting Started
+The Next.js app powering [Thilak Vikram R's portfolio](https://thertv.in): a
+database-driven public portfolio page, an AI assistant that answers visitor
+questions, and an authenticated admin panel for editing site content. See
+the [root README](../README.md) for the full project overview.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js (App Router)** + React + TypeScript
+- **Tailwind CSS** for styling
+- **Prisma** ORM over **MariaDB**
+- **better-auth** for login/sessions/admin roles
+- **LangChain + Google Gemini + ChromaDB** for the AI assistant
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Getting started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Start the database (from the repo root):
+   ```bash
+   docker compose -f database/docker-compose.yml up -d
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file with your database connection string, auth secret,
+   and Google AI API key.
+4. Generate the Prisma client and run migrations:
+   ```bash
+   npm run db:generate
+   npm run db:migrate
+   ```
+5. Run the dev server:
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to see it.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the local dev server |
+| `npm run build` | Production build |
+| `npm run start` | Run the production build |
+| `npm run lint` | Lint the codebase |
+| `npm run db:generate` | Regenerate the Prisma client |
+| `npm run db:migrate` | Run/create Prisma migrations |
+| `npm run setAdmin` | Grant a user admin access |
 
-To learn more about Next.js, take a look at the following resources:
+## Project layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/_portfolio` — public portfolio content model and page rendering
+- `app/_ai` — AI assistant logic (LangChain + vector store)
+- `app/_auth` — session/auth helpers
+- `app/admin` — authenticated content editor
+- `app/auth` — login/logout routes
+- `components/` — shared client components (chat widget, user menu, animated logo, etc.)
+- `database/` — Prisma-backed data access (e.g. loading/saving portfolio content)
+- `scripts/` — one-off scripts (seeding content, granting admin access)
